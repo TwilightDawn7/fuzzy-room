@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Fuzzy-Room: 3D Mamdani Digital Twin</title>
+  <!-- Google Fonts: Inter & JetBrains Mono -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css" />
+
+  <!-- Import Map for Three.js and Addons -->
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+      "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+    }
+  }
+  </script>
+</head>
+<body>
+
+  <!-- 3D WebGL Canvas Layer -->
+  <div id="webgl-container"></div>
+
+  <!-- 2D HTML Floating Labels (CSS2DRenderer) -->
+  <div id="css2d-container"></div>
+
+  <!-- Floating Glassmorphic HUD Layer -->
+  <div class="hud-layer">
+    <!-- Top Bar -->
+    <header class="top-bar interactive">
+      <div class="glass-panel brand-badge">
+        <h1>FUZZY-ROOM <span class="pill">DIGITAL TWIN</span></h1>
+      </div>
+
+      <!-- Top Center Reasoning Flow Pipeline Strip -->
+      <div id="reasoningPipeline" class="glass-panel reasoning-pipeline">
+        <div id="pipeStageCrisp" class="pipe-stage">
+          <span class="pipe-title">1. Inputs</span>
+          <span id="pipeSubCrisp" class="pipe-sub">-- °C, --%</span>
+        </div>
+        <span class="pipe-arrow">➜</span>
+        <div id="pipeStageFuzzify" class="pipe-stage">
+          <span class="pipe-title">2. Fuzzify</span>
+          <span id="pipeSubFuzzify" class="pipe-sub">μ(Term)</span>
+        </div>
+        <span class="pipe-arrow">➜</span>
+        <div id="pipeStageRules" class="pipe-stage">
+          <span class="pipe-title">3. Rules</span>
+          <span id="pipeSubRules" class="pipe-sub">12 Eval</span>
+        </div>
+        <span class="pipe-arrow">➜</span>
+        <div id="pipeStageAggregate" class="pipe-stage">
+          <span class="pipe-title">4. Aggregate</span>
+          <span id="pipeSubAggregate" class="pipe-sub">Max Env</span>
+        </div>
+        <span class="pipe-arrow">➜</span>
+        <div id="pipeStageDefuzzify" class="pipe-stage">
+          <span class="pipe-title">5. Defuzzify</span>
+          <span id="pipeSubDefuzzify" class="pipe-sub">Centroid</span>
+        </div>
+        <span class="pipe-arrow">➜</span>
+        <div id="pipeStageActuator" class="pipe-stage">
+          <span class="pipe-title">6. Actuators</span>
+          <span id="pipeSubActuator" class="pipe-sub">Fan / AC</span>
+        </div>
+      </div>
+
+      <!-- Camera Presets & System Status -->
+      <div style="display: flex; gap: 8px; align-items: center;">
+        <!-- Phase 6 Effect & Mode Toggles -->
+        <div class="glass-panel" style="display: flex; gap: 4px; padding: 4px 6px;">
+          <button id="btnToggleHeatmap" class="hud-btn effect-active" style="padding: 4px 8px;" title="Toggle 3D Volumetric Temperature Heatmap">🔥 Heatmap</button>
+          <button id="btnToggleAirflow" class="hud-btn effect-active" style="padding: 4px 8px;" title="Toggle GPU Airflow Particles">💨 Airflow</button>
+          <button id="btnControlSurface" class="hud-btn" style="padding: 4px 8px;" title="View 3D Mamdani Control Surface">🌐 Surface</button>
+          <button id="btnBenchmark" class="hud-btn" style="padding: 4px 8px;" title="Fuzzy vs Bang-Bang Thermostat Comparison">⚖️ Benchmark</button>
+          <button id="btnStartTour" class="hud-btn" style="padding: 4px 8px; color: var(--violet-accent); border-color: rgba(167, 139, 250, 0.4);" title="Start Automated Presentation Tour [P]">🎬 Tour <kbd>P</kbd></button>
+        </div>
+
+        <div class="glass-panel camera-bar">
+          <button class="camera-btn active" data-preset="corner">
+            <span>Isometric</span> <kbd>1</kbd>
+          </button>
+          <button class="camera-btn" data-preset="top">
+            <span>Top</span> <kbd>2</kbd>
+          </button>
+          <button class="camera-btn" data-preset="front">
+            <span>Front</span> <kbd>3</kbd>
+          </button>
+          <button class="camera-btn" data-preset="orbit">
+            <span>Orbit</span> <kbd>4</kbd>
+          </button>
+        </div>
+
+        <div class="glass-panel system-status">
+          <button id="btnDayNight" class="hud-btn" style="padding: 4px 8px;">☀️ Day</button>
+          <select id="selectQuality" class="hud-btn" style="padding: 4px 6px; cursor: pointer;">
+            <option value="high" selected>High</option>
+            <option value="medium">Medium</option>
+            <option value="low">Low</option>
+          </select>
+          <div id="fpsValue" class="fps-counter">60 FPS</div>
+          <div class="status-indicator">
+            <div id="statusDot" class="dot"></div>
+            <span id="statusText">10 Hz</span>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <!-- Left Controls Panel -->
+    <div id="leftControlsPanel" class="glass-panel left-controls interactive">
+      <div class="panel-header-row">
+        <div class="section-title" style="margin: 0;">
+          <span>System Controls</span>
+        </div>
+        <button id="btnCollapseLeft" class="collapse-btn" title="Collapse Panel">−</button>
+      </div>
+
+      <!-- Mode Selector -->
+      <div class="btn-grid">
+        <button id="btnAuto" class="hud-btn active">AUTO (Fuzzy FIS)</button>
+        <button id="btnManual" class="hud-btn">MANUAL</button>
+      </div>
+
+      <!-- Manual Override Sliders (Visible in MANUAL mode) -->
+      <div id="manualControls" style="display: none; background: rgba(0, 0, 0, 0.25); border: 1px dashed rgba(255, 255, 255, 0.15); border-radius: 8px; padding: 10px; margin-bottom: 4px;">
+        <div style="font-size: 10px; color: var(--orange-accent); font-weight: 700; margin-bottom: 6px; text-transform: uppercase;">
+          ⚠️ Manual Actuator Override
+        </div>
+        <div class="slider-block" style="margin-bottom: 6px;">
+          <div class="slider-label">
+            <span>Manual Fan Speed</span>
+            <span id="valManualFan" class="slider-val">50%</span>
+          </div>
+          <input type="range" id="sliderManualFan" min="0" max="100" step="1" value="50" />
+        </div>
+        <div class="slider-block">
+          <div class="slider-label">
+            <span>Manual AC Power</span>
+            <span id="valManualAC" class="slider-val">50%</span>
+          </div>
+          <input type="range" id="sliderManualAC" min="0" max="100" step="1" value="50" />
+        </div>
+      </div>
+
+      <!-- Sliders: Setpoint, Speed, Outside Temp, Occupancy -->
+      <div class="slider-block">
+        <div class="slider-label">
+          <span>Target Setpoint</span>
+          <span id="valSetpoint" class="slider-val">24.0 °C</span>
+        </div>
+        <input type="range" id="sliderSetpoint" min="16.0" max="30.0" step="0.5" value="24.0" />
+      </div>
+
+      <div class="slider-block">
+        <div class="slider-label">
+          <span>Simulation Speed</span>
+          <span id="valSpeed" class="slider-val">2.0x</span>
+        </div>
+        <input type="range" id="sliderSpeed" min="0.5" max="20.0" step="0.5" value="2.0" />
+      </div>
+
+      <div class="slider-block">
+        <div class="slider-label">
+          <span>Outside Temperature</span>
+          <span id="valOutsideTemp" class="slider-val">32.0 °C</span>
+        </div>
+        <input type="range" id="sliderOutsideTemp" min="0.0" max="45.0" step="0.5" value="32.0" />
+      </div>
+
+      <div class="slider-block">
+        <div class="slider-label">
+          <span>Occupant Count</span>
+          <span id="valPeople" class="slider-val">1</span>
+        </div>
+        <input type="range" id="sliderPeople" min="0" max="10" step="1" value="1" />
+      </div>
+
+      <!-- Disturbances: Window & Sun -->
+      <div class="section-title">
+        <span>Disturbances</span>
+      </div>
+      <div class="btn-grid">
+        <button id="btnWindow" class="hud-btn">🪟 Window: Closed</button>
+        <button id="btnSun" class="hud-btn">☀️ Sun: OFF</button>
+      </div>
+
+      <!-- Scenarios -->
+      <div class="section-title">
+        <span>Preset Scenarios</span>
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 5px;">
+        <button class="hud-btn btn-scenario" data-scenario="hot_afternoon" style="justify-content: flex-start;">
+          ☀️ Hot Afternoon (40°C, Sun ON)
+        </button>
+        <button class="hud-btn btn-scenario" data-scenario="party" style="justify-content: flex-start;">
+          🎉 Party (8 People Surge)
+        </button>
+        <button class="hud-btn btn-scenario" data-scenario="window_opened" style="justify-content: flex-start;">
+          🪟 Window Opened (Infiltration)
+        </button>
+        <button class="hud-btn btn-scenario" data-scenario="night_cool_down" style="justify-content: flex-start;">
+          🌙 Night Cool-down (18°C Inflow)
+        </button>
+      </div>
+
+      <button id="btnReset" class="hud-btn" style="margin-top: 4px; border-color: rgba(239, 68, 68, 0.4); color: var(--red-accent);">
+        🔄 Reset Simulation <kbd style="margin-left: 6px; font-size: 10px; background: rgba(0,0,0,0.3); padding: 1px 4px; border-radius: 4px;">R</kbd>
+      </button>
+
+      <!-- Mini Telemetry Strip -->
+      <div style="background: rgba(0,0,0,0.3); border-radius: 8px; padding: 8px; display: grid; grid-template-columns: 1fr 1fr; gap: 6px; font-size: 11px;">
+        <div>Room Temp: <strong id="lblRoomMeanTemp" style="color: var(--orange-accent);">-- °C</strong></div>
+        <div>Humidity: <strong id="lblRoomMeanHumidity" style="color: var(--cyan-accent);">-- %</strong></div>
+        <div>Power: <strong id="lblTotalPower">-- W</strong></div>
+        <div>Comfort: <strong id="lblComfortRatio" style="color: var(--green-accent);">-- %</strong></div>
+      </div>
+    </div>
+
+    <!-- Right Fuzzy Reasoning Panel (Academic Core) -->
+    <div id="fuzzyPanel" class="glass-panel right-fuzzy-panel interactive">
+      <div class="panel-header-row">
+        <div class="panel-title-text">
+          <span style="color: var(--violet-accent); font-size: 14px;">🧠</span>
+          <span>MAMDANI FIS ENGINE</span>
+        </div>
+        <div class="panel-header-actions">
+          <button id="btnExplainDecision" class="hud-btn" style="padding: 3px 8px; font-size: 10px; border-color: rgba(167, 139, 250, 0.4); color: var(--violet-accent);">
+            💡 Explain
+          </button>
+          <button id="btnCollapseRight" class="collapse-btn" title="Collapse Panel">−</button>
+        </div>
+      </div>
+
+      <!-- FIS Tabs: Fan FIS vs AC FIS -->
+      <div class="panel-tabs">
+        <button id="tabFanFIS" class="tab-btn active">Fan FIS (Speed %)</button>
+        <button id="tabACFIS" class="tab-btn">AC FIS (Cooling %)</button>
+      </div>
+
+      <!-- Step 2: Fuzzification (Input Membership Curves) -->
+      <div class="canvas-card">
+        <div class="canvas-header">
+          <span id="lblInput1Title">Input 1: Temperature</span>
+          <span id="valInput1" class="val-highlight">-- °C</span>
+        </div>
+        <canvas id="canvasInput1" class="plot-canvas" width="340" height="120"></canvas>
+        <div id="badgesInput1" class="membership-badges"></div>
+      </div>
+
+      <div class="canvas-card">
+        <div class="canvas-header">
+          <span id="lblInput2Title">Input 2: Humidity</span>
+          <span id="valInput2" class="val-highlight">-- %</span>
+        </div>
+        <canvas id="canvasInput2" class="plot-canvas" width="340" height="120"></canvas>
+        <div id="badgesInput2" class="membership-badges"></div>
+      </div>
+
+      <!-- Step 3: Mamdani Rule Base Table -->
+      <div class="canvas-card">
+        <div class="canvas-header">
+          <span>Step 3: Rule Evaluation (12 Rules)</span>
+          <label style="cursor: pointer; display: flex; align-items: center; gap: 4px; font-size: 10px;">
+            <input type="checkbox" id="chkFiredOnly" style="accent-color: var(--violet-accent);" />
+            <span>Fired Only</span>
+          </label>
+        </div>
+        <div id="rulesContainer">
+          <!-- Populated dynamically by RulesTable -->
+        </div>
+      </div>
+
+      <!-- Step 4, 5, 6: Aggregation & Defuzzification -->
+      <div class="canvas-card">
+        <div class="canvas-header">
+          <span id="lblAggTitle">Steps 4-6: Aggregation & Defuzzification</span>
+          <span id="valCrispOutput" class="val-highlight">Output: --%</span>
+        </div>
+        <canvas id="canvasAggregation" class="plot-canvas tall" width="340" height="140"></canvas>
+        <div style="display: flex; justify-content: space-between; font-size: 9px; font-family: var(--font-mono); color: var(--text-muted); padding-top: 2px;">
+          <div>Centroid: <strong id="lblValCentroid" style="color: var(--cyan-accent);">--%</strong></div>
+          <div>Bisector: <strong id="lblValBisector" style="color: var(--orange-accent);">--%</strong></div>
+          <div>MOM: <strong id="lblValMOM" style="color: var(--violet-accent);">--%</strong></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Bottom Real-time Telemetry Panel (Rolling 60s Time Series) -->
+    <div id="telemetryPanel" class="glass-panel bottom-panel interactive">
+      <div class="bottom-header-row">
+        <div style="font-size: 11px; font-weight: 700; color: #fff; display: flex; align-items: center; gap: 8px;">
+          <span>📈 REAL-TIME TELEMETRY (ROLLING 60s)</span>
+        </div>
+
+        <div class="telemetry-legend">
+          <div class="legend-pill active" data-channel="temp" style="color: #fb923c;">
+            <span class="legend-dot" style="background: #fb923c;"></span> Temp
+          </div>
+          <div class="legend-pill active" data-channel="setpoint" style="color: #10b981;">
+            <span class="legend-dot" style="background: #10b981;"></span> Setpoint
+          </div>
+          <div class="legend-pill active" data-channel="humidity" style="color: #38bdf8;">
+            <span class="legend-dot" style="background: #38bdf8;"></span> Humidity
+          </div>
+          <div class="legend-pill active" data-channel="fan" style="color: #22d3ee;">
+            <span class="legend-dot" style="background: #22d3ee;"></span> Fan %
+          </div>
+          <div class="legend-pill active" data-channel="ac" style="color: #a78bfa;">
+            <span class="legend-dot" style="background: #a78bfa;"></span> AC %
+          </div>
+        </div>
+
+        <div class="kpi-row">
+          <div class="kpi-chip">
+            <span class="kpi-label">Comfort Time</span>
+            <span id="kpiComfort" class="kpi-val" style="color: var(--green-accent);">100%</span>
+          </div>
+          <div class="kpi-chip">
+            <span class="kpi-label">Total Power</span>
+            <span id="kpiPower" class="kpi-val">0 W</span>
+          </div>
+          <div class="kpi-chip">
+            <span class="kpi-label">Cumulative Energy</span>
+            <span id="kpiEnergy" class="kpi-val">0.000 kWh</span>
+          </div>
+          <button id="btnCollapseBottom" class="collapse-btn" title="Collapse Panel">−</button>
+        </div>
+      </div>
+
+      <canvas id="canvasTimeSeries" width="600" height="110" style="width: 100%; height: 110px; display: block; border-radius: 6px;"></canvas>
+    </div>
+  </div>
+
+  <!-- Object Inspector Modal (Slide-in on 3D Object Click) -->
+  <div id="inspectorModal" class="glass-panel info-modal interactive">
+    <div class="info-header">
+      <div id="inspectorTitle" class="info-title">Object Inspection</div>
+      <button id="closeModalBtn" class="close-btn">✕</button>
+    </div>
+    <div id="inspectorStats">
+      <!-- Live stats populated on click -->
+    </div>
+  </div>
+
+  <!-- Decision Explanation Modal (Triggered by "Explain" button) -->
+  <div id="explainModal" class="explain-modal-backdrop interactive">
+    <div class="glass-panel explain-modal-card">
+      <div class="info-header">
+        <div class="info-title" style="display: flex; align-items: center; gap: 8px;">
+          <span style="color: var(--violet-accent);">💡</span>
+          <span>Mamdani Inference Decision Explanation</span>
+        </div>
+        <button id="closeExplainModalBtn" class="close-btn">✕</button>
+      </div>
+      <div id="explainModalContent">
+        <!-- Rendered dynamically by ReasoningPipeline -->
+      </div>
+    </div>
+  </div>
+
+  <!-- 3D Mamdani Control Surface Modal -->
+  <div id="surfaceModal" class="explain-modal-backdrop interactive">
+    <div class="glass-panel surface-modal-card">
+      <div class="info-header">
+        <div class="info-title" style="display: flex; align-items: center; gap: 8px;">
+          <span style="color: var(--cyan-accent);">🌐</span>
+          <span>3D Mamdani Control Surface (NumPy FIS)</span>
+        </div>
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <div class="panel-tabs" style="padding: 2px;">
+            <button id="btnSurfaceFan" class="tab-btn active">Fan Surface</button>
+            <button id="btnSurfaceAC" class="tab-btn">AC Surface</button>
+          </div>
+          <button id="closeSurfaceModalBtn" class="close-btn">✕</button>
+        </div>
+      </div>
+      <div id="surfaceViewerContainer"></div>
+      <div style="font-size: 11px; color: var(--text-muted); display: flex; justify-content: space-between;">
+        <span>Left-click + Drag to rotate | Scroll to zoom</span>
+        <span style="color: var(--red-accent);">● Red Marker = Current Operating Point</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Comparative Benchmark Modal (Fuzzy vs Bang-Bang) -->
+  <div id="benchmarkModal" class="explain-modal-backdrop interactive">
+    <div class="glass-panel benchmark-modal-card">
+      <div class="info-header">
+        <div class="info-title" style="display: flex; align-items: center; gap: 8px;">
+          <span style="color: var(--green-accent);">⚖️</span>
+          <span>Comparative Benchmark: Mamdani Fuzzy vs. Bang-Bang Thermostat</span>
+        </div>
+        <button id="closeBenchmarkModalBtn" class="close-btn">✕</button>
+      </div>
+      <div id="benchmarkModalContent">
+        <!-- Rendered dynamically by BenchmarkModal -->
+      </div>
+    </div>
+  </div>
+
+  <!-- Application Entry Point -->
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>

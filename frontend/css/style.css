@@ -1,0 +1,908 @@
+:root {
+  --bg-dark: #0a0e17;
+  --panel-bg: rgba(15, 23, 42, 0.72);
+  --panel-border: rgba(255, 255, 255, 0.10);
+  --panel-border-hover: rgba(34, 211, 238, 0.4);
+  --cyan-accent: #22d3ee;
+  --cyan-glow: rgba(34, 211, 238, 0.25);
+  --orange-accent: #fb923c;
+  --orange-glow: rgba(251, 146, 60, 0.25);
+  --violet-accent: #a78bfa;
+  --violet-glow: rgba(167, 139, 250, 0.25);
+  --green-accent: #10b981;
+  --red-accent: #ef4444;
+  --text-main: #f8fafc;
+  --text-muted: #94a3b8;
+  --font-ui: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  user-select: none;
+}
+
+html, body {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background-color: var(--bg-dark);
+  color: var(--text-main);
+  font-family: var(--font-ui);
+}
+
+/* 3D WebGL Canvas Layer */
+#webgl-container {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 1;
+}
+
+#css2d-container {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 2;
+  pointer-events: none;
+}
+
+/* Floating Glassmorphism Panels */
+.hud-layer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 10;
+  pointer-events: none;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 20px;
+}
+
+.interactive {
+  pointer-events: auto;
+}
+
+/* Glass Card Baseline */
+.glass-panel {
+  background: var(--panel-bg);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--panel-border);
+  border-radius: 16px;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.45);
+  transition: border-color 0.25s ease, box-shadow 0.25s ease;
+}
+
+.glass-panel:hover {
+  border-color: rgba(255, 255, 255, 0.18);
+}
+
+/* Top Navigation Bar */
+.top-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+}
+
+.brand-badge {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 18px;
+}
+
+.brand-badge h1 {
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.brand-badge .pill {
+  font-size: 11px;
+  font-weight: 600;
+  font-family: var(--font-mono);
+  padding: 2px 7px;
+  border-radius: 6px;
+  background: rgba(34, 211, 238, 0.15);
+  color: var(--cyan-accent);
+  border: 1px solid rgba(34, 211, 238, 0.35);
+}
+
+/* Camera Preset Bar */
+.camera-bar {
+  display: flex;
+  gap: 6px;
+  padding: 6px 8px;
+  border-radius: 28px;
+}
+
+.camera-btn {
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--text-muted);
+  padding: 4px 8px;
+  border-radius: 16px;
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.camera-btn:hover {
+  color: var(--text-main);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.camera-btn.active {
+  background: rgba(34, 211, 238, 0.18);
+  color: var(--cyan-accent);
+  border-color: rgba(34, 211, 238, 0.4);
+  font-weight: 600;
+}
+
+.camera-btn kbd {
+  font-size: 10px;
+  font-family: var(--font-mono);
+  background: rgba(0, 0, 0, 0.4);
+  padding: 1px 4px;
+  border-radius: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+/* Quick Telemetry & Status Badges */
+.system-status {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 16px;
+}
+
+.fps-counter {
+  font-size: 12px;
+  font-family: var(--font-mono);
+  color: var(--text-muted);
+}
+
+.status-indicator {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-family: var(--font-mono);
+  font-weight: 500;
+}
+
+.dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--green-accent);
+  box-shadow: 0 0 8px var(--green-accent);
+}
+
+.dot.offline {
+  background: var(--red-accent);
+  box-shadow: 0 0 8px var(--red-accent);
+}
+
+/* Left Sidebar Controls */
+.left-controls {
+  width: 320px;
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  max-height: calc(100vh - 120px);
+  overflow-y: auto;
+}
+
+.section-title {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+  font-weight: 600;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.slider-block {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.slider-label {
+  display: flex;
+  justify-content: space-between;
+  font-size: 13px;
+  color: var(--text-main);
+}
+
+.slider-val {
+  font-family: var(--font-mono);
+  font-weight: 600;
+  color: var(--cyan-accent);
+}
+
+input[type="range"] {
+  width: 100%;
+  accent-color: var(--cyan-accent);
+  height: 4px;
+  border-radius: 2px;
+  cursor: pointer;
+}
+
+.btn-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.hud-btn {
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  border: 1px solid var(--panel-border);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text-main);
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.hud-btn:hover {
+  background: rgba(255, 255, 255, 0.10);
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.hud-btn.active {
+  background: rgba(34, 211, 238, 0.2);
+  border-color: var(--cyan-accent);
+  color: var(--cyan-accent);
+}
+
+/* Floating CSS2D Annotations */
+.annotation-tag {
+  background: rgba(10, 14, 23, 0.85);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 20px;
+  padding: 4px 10px;
+  font-size: 11px;
+  font-family: var(--font-mono);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+  pointer-events: auto;
+  cursor: pointer;
+  transition: transform 0.2s ease, border-color 0.2s ease;
+  white-space: nowrap;
+}
+
+.annotation-tag:hover {
+  transform: scale(1.08);
+  border-color: var(--cyan-accent);
+}
+
+.tag-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+}
+
+.tag-dot.cyan { background: var(--cyan-accent); box-shadow: 0 0 6px var(--cyan-accent); }
+.tag-dot.orange { background: var(--orange-accent); box-shadow: 0 0 6px var(--orange-accent); }
+.tag-dot.violet { background: var(--violet-accent); box-shadow: 0 0 6px var(--violet-accent); }
+.tag-dot.green { background: var(--green-accent); box-shadow: 0 0 6px var(--green-accent); }
+
+/* Object Inspection Info Card */
+.info-modal {
+  position: absolute;
+  top: 90px;
+  right: 20px;
+  width: 320px;
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  transform: translateX(360px);
+  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  z-index: 100;
+}
+
+.info-modal.visible {
+  transform: translateX(0);
+}
+
+.info-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.info-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: #fff;
+}
+
+.close-btn {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 16px;
+  cursor: pointer;
+  padding: 2px 6px;
+}
+
+.close-btn:hover {
+  color: #fff;
+}
+
+.info-stat-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  padding: 6px 0;
+}
+
+.info-stat-label {
+  color: var(--text-muted);
+}
+
+.info-stat-val {
+  font-family: var(--font-mono);
+  font-weight: 600;
+  color: var(--text-main);
+}
+
+/* ==========================================================================
+   Phase 5: Fuzzy Reasoning Panels, Pipeline Strip & Real-time Telemetry
+   ========================================================================== */
+
+/* Top Center Reasoning Pipeline Strip */
+.reasoning-pipeline {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border-radius: 20px;
+}
+
+.pipe-stage {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  padding: 3px 6px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  min-width: 68px;
+  transition: all 0.2s ease;
+}
+
+.pipe-stage.pulse {
+  border-color: var(--cyan-accent);
+  box-shadow: 0 0 10px rgba(34, 211, 238, 0.3);
+}
+
+.pipe-title {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+}
+
+.pipe-sub {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--cyan-accent);
+}
+
+.pipe-arrow {
+  color: rgba(255, 255, 255, 0.25);
+  font-size: 11px;
+}
+
+/* Right Fuzzy Reasoning Panel */
+.right-fuzzy-panel {
+  position: absolute;
+  top: 76px;
+  right: 20px;
+  width: 380px;
+  max-height: calc(100vh - 96px);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  overflow-y: auto;
+  z-index: 20;
+}
+
+.panel-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  padding-bottom: 10px;
+}
+
+.panel-title-text {
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.panel-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* Fuzzy Tabs */
+.panel-tabs {
+  display: flex;
+  background: rgba(0, 0, 0, 0.3);
+  padding: 3px;
+  border-radius: 8px;
+  gap: 4px;
+}
+
+.tab-btn {
+  flex: 1;
+  padding: 6px 10px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-align: center;
+}
+
+.tab-btn:hover {
+  color: #fff;
+}
+
+.tab-btn.active {
+  background: rgba(167, 139, 250, 0.2);
+  color: var(--violet-accent);
+  box-shadow: 0 2px 8px rgba(167, 139, 250, 0.2);
+}
+
+/* Canvas Plot Cards */
+.canvas-card {
+  background: rgba(10, 14, 23, 0.5);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.canvas-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.canvas-header .val-highlight {
+  font-family: var(--font-mono);
+  color: var(--cyan-accent);
+}
+
+.plot-canvas {
+  width: 100%;
+  height: 95px;
+  border-radius: 6px;
+  display: block;
+}
+
+.plot-canvas.tall {
+  height: 110px;
+}
+
+/* Membership Degree Badges */
+.membership-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.deg-chip {
+  font-size: 9px;
+  font-family: var(--font-mono);
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: var(--text-muted);
+}
+
+.deg-chip.active {
+  border-color: var(--violet-accent);
+  color: #fff;
+  background: rgba(167, 139, 250, 0.2);
+}
+
+/* Rules List & Rule Cards */
+.rules-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 115px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.rule-card {
+  background: rgba(10, 14, 23, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 8px;
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  transition: all 0.2s ease;
+}
+
+.rule-card.active-fired {
+  border-color: var(--violet-accent);
+  background: rgba(167, 139, 250, 0.12);
+  box-shadow: 0 0 12px rgba(167, 139, 250, 0.2);
+}
+
+.rule-top-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 11px;
+}
+
+.rule-id-badge {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-muted);
+}
+
+.rule-indicator-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.rule-indicator-dot.fired-dot {
+  background: var(--violet-accent);
+  box-shadow: 0 0 6px var(--violet-accent);
+}
+
+.rule-antecedents {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10px;
+  color: var(--text-main);
+}
+
+.term-badge {
+  font-size: 10px;
+  color: var(--text-muted);
+}
+
+.term-badge strong {
+  color: var(--text-main);
+}
+
+.op-and {
+  color: var(--violet-accent);
+  font-weight: bold;
+}
+
+.cons-badge {
+  font-size: 10px;
+  color: var(--cyan-accent);
+}
+
+.cons-badge strong {
+  color: #fff;
+}
+
+.rule-strength-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.strength-bar-track {
+  flex: 1;
+  height: 5px;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.strength-bar-fill {
+  height: 100%;
+  background: var(--violet-accent);
+  border-radius: 3px;
+  transition: width 0.15s ease-out;
+}
+
+.strength-val {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-muted);
+  min-width: 32px;
+  text-align: right;
+}
+
+.strength-val.fired-text {
+  color: var(--violet-accent);
+  font-weight: 700;
+}
+
+/* Bottom Real-time Telemetry Panel */
+.bottom-panel {
+  position: absolute;
+  bottom: 20px;
+  left: 360px;
+  right: 420px;
+  padding: 14px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  z-index: 20;
+}
+
+.bottom-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.telemetry-legend {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.legend-pill {
+  font-size: 10px;
+  font-family: var(--font-mono);
+  padding: 3px 8px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: var(--text-muted);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  transition: all 0.2s ease;
+}
+
+.legend-pill.active {
+  border-color: currentColor;
+  color: #fff;
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.legend-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+}
+
+.kpi-row {
+  display: flex;
+  gap: 14px;
+}
+
+.kpi-chip {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.kpi-label {
+  font-size: 9px;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.kpi-val {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--cyan-accent);
+}
+
+/* Natural Language Explanation Modal */
+.explain-modal-backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(5, 8, 15, 0.75);
+  backdrop-filter: blur(12px);
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.25s ease;
+}
+
+.explain-modal-backdrop.visible {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.explain-modal-card {
+  width: 580px;
+  max-width: 90vw;
+  max-height: 85vh;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  overflow-y: auto;
+}
+
+.explain-quote {
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--text-main);
+  background: rgba(0, 0, 0, 0.3);
+  border-left: 3px solid var(--violet-accent);
+  padding: 10px 14px;
+  border-radius: 4px;
+}
+
+/* Panel Collapse Toggle Styling */
+.collapse-btn {
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: var(--text-muted);
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.collapse-btn:hover {
+  color: #fff;
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
+.collapsed > :not(.panel-header-row):not(.section-title):not(.brand-badge) {
+  display: none !important;
+}
+
+.collapsed {
+  max-height: 48px !important;
+  overflow: hidden !important;
+  width: auto !important;
+}
+
+/* ==========================================================================
+   Phase 6: Presentation Tour, 3D Control Surface & Benchmark Modals
+   ========================================================================== */
+
+/* Cinematic Tour Banner */
+.tour-banner {
+  position: fixed;
+  bottom: 30px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 620px;
+  max-width: 90vw;
+  padding: 14px 20px;
+  z-index: 300;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.7);
+  border-color: rgba(34, 211, 238, 0.4);
+  animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes slideUp {
+  from {
+    transform: translate(-50%, 40px);
+    opacity: 0;
+  }
+  to {
+    transform: translate(-50%, 0);
+    opacity: 1;
+  }
+}
+
+/* 3D Control Surface Modal Card */
+.surface-modal-card {
+  width: 680px;
+  max-width: 92vw;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+#surfaceViewerContainer {
+  width: 100%;
+  height: 380px;
+  border-radius: 12px;
+  overflow: hidden;
+  position: relative;
+  background: #0a0e17;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* Benchmark Comparison Modal Card */
+.benchmark-modal-card {
+  width: 720px;
+  max-width: 94vw;
+  padding: 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* Effect Toggle Active State */
+.hud-btn.effect-active {
+  background: rgba(34, 211, 238, 0.25);
+  border-color: var(--cyan-accent);
+  color: var(--cyan-accent);
+  box-shadow: 0 0 10px rgba(34, 211, 238, 0.3);
+}
+
+
+
